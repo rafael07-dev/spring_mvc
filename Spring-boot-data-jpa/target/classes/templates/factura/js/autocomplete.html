@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<body>
+    <script type="text/javascript" th:fragment="javascript">
+
+        $(document).ready(function () {
+
+            $("#buscar_producto").autocomplete({
+                //metodo para realizar peticion ajax
+                source: function (request, response) {
+                    $.ajax({
+                        url: "/factura/cargar-productos/" + request.term,
+                        dataType: "json",
+                        data: {
+                            term: request.term
+                        },
+                        success: function (data) {
+                            response($.map(data, function (item) {
+                                return {
+                                    value: item.id,
+                                    label: item.nombre,
+                                    precio: item.precio,
+                                };
+                            }));
+                        },
+                    });
+                },
+                //encargado de procesar el resultado de la consulta
+                select: function (event, ui) {
+                    //$("#buscar_producto").val(ui.item.label);
+
+                    if (itemsHelper.hasProduct(ui.item.value)){
+                        itemsHelper.incrementCant(ui.item.value, ui.item.precio);
+                        return false;
+                    }
+
+                    var linea = $("#plantillaIntemsFactura").html()
+
+                    linea = linea.replace(/{ID}/g, ui.item.value)
+                    linea = linea.replace(/{NOMBRE}/g, ui.item.label)
+                    linea = linea.replace(/{PRECIO}/g, ui.item.precio)
+
+                    $("#cargarItemProductos tbody").append(linea)
+
+                    itemsHelper.calcSubtotal(ui.item.value, ui.item.precio, 1)
+
+                    return false;
+
+                }
+            });
+            $("form").submit(function () {
+                $("#plantillaIntemsFactura").remove();
+            })
+        });
+
+        var itemsHelper = {
+            calcSubtotal : function (id, precio, cantidad){
+                $("#sub_total_" + id).html(parseInt(precio) * parseInt(cantidad));
+                this.calcTotal();
+            },
+            hasProduct: function (id) {
+                var resultado = false;
+
+                $('input[name="item_id[]"]').each(function () {
+                    if (parseInt(id) === parseInt($(this).val())){
+                        resultado = true;
+                    }
+                })
+                return resultado;
+            },
+            incrementCant: function (id, precio){
+                var cant = $("#catidad_" + id).val() ? parseInt($("#catidad_" + id).val()) : 0;
+                $("#catidad_" + id).val(++cant);
+                this.calcSubtotal(id, precio, cant);
+                //this.calcTotal();
+            },
+            deleteLine: function (id) {
+                $("#row_"+ id).remove();
+                this.calcTotal();
+            },
+            calcTotal: function (){
+                let total = 0
+                $('span[id^="sub_total_"]').each(function (){
+                   total += parseInt($(this).html());
+                });
+
+                $("#total").html(total);
+            }
+        }
+
+    </script>
+</body>
+</html>
